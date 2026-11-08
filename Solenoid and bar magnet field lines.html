@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Solenoid and bar magnet field lines</title>
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--text:#1b2230;--text-2:#4a5568;--text-3:#7d889b;--border:rgba(27,34,48,.16);--acc:#0F6E56;color-scheme:light dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12161d;--card:#1a2029;--text:#e6e9ef;--text-2:#a9b3c4;--text-3:#7a8699;--border:rgba(230,233,239,.18);--acc:#5DCAA5}}
+:root[data-theme="dark"]{--bg:#12161d;--card:#1a2029;--text:#e6e9ef;--text-2:#a9b3c4;--text-3:#7a8699;--border:rgba(230,233,239,.18);--acc:#5DCAA5}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:760px;margin:0 auto;padding:24px 16px 32px}
+h1{font-size:22px;font-weight:600;margin:0 0 4px;letter-spacing:-.01em}
+.lede{color:var(--text-2);margin:0 0 18px;font-size:14px}
+.row{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;margin:0 0 8px;font-size:14px;color:var(--text-2)}
+.row .g{font-size:13px;color:var(--text-3);min-width:70px}
+label{display:flex;gap:8px;align-items:center}
+.v{color:var(--text);min-width:30px}
+input[type=range]{width:90px;accent-color:var(--acc)}
+input[type=checkbox]{accent-color:var(--acc)}
+button{font:inherit;font-size:13px;padding:6px 12px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);cursor:pointer}
+button:hover{border-color:var(--text-3)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+canvas{width:100%;height:380px;display:block;border:1px solid var(--border);border-radius:12px;background:var(--card);touch-action:none;cursor:grab;margin-top:12px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:12px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.k{font-size:13px;color:var(--text-2)}.n{font-size:22px;font-weight:600}.s{font-size:12px;color:var(--text-3)}
+.note{font-size:13px;color:var(--text-3);margin:10px 0 0}
+</style>
+</head>
+<body>
+<main>
+<h1>Solenoid and bar magnet</h1>
+<p class="lede">Magnetic field lines for a finite coil and a permanent bar magnet, with the force and torque the coil exerts on the magnet.</p>
+<div class="row"><span class="g">Solenoid</span>
+<label>Turns <input type="range" id="turns" min="2" max="12" step="1" value="8"><span class="v" id="turnsOut">8</span></label>
+<label>Length <input type="range" id="len" min="120" max="320" step="10" value="240"><span class="v" id="lenOut">24 cm</span></label>
+<label>Radius <input type="range" id="rad" min="20" max="70" step="2" value="40"><span class="v" id="radOut">4 cm</span></label>
+<label>Current <input type="range" id="cur" min="0.5" max="10" step="0.5" value="2"><span class="v" id="curOut">2 A</span></label>
+<button id="rev">Reverse current</button></div>
+<div class="row"><span class="g">Bar magnet</span>
+<label>Strength <input type="range" id="str" min="0" max="3" step="0.25" value="1"><span class="v" id="strOut">1</span></label>
+<label>Rotate <input type="range" id="rot" min="0" max="359" step="1" value="0"><span class="v" id="rotOut">0°</span></label>
+<label>Bar length <input type="range" id="blen" min="40" max="200" step="4" value="84"><span class="v" id="blenOut">8.4 cm</span></label>
+<label>Bar thickness <input type="range" id="bth" min="10" max="50" step="2" value="24"><span class="v" id="bthOut">2.4 cm</span></label>
+
+<button id="flip">Flip magnet</button>
+<label><input type="checkbox" id="frc" checked> Force arrows</label>
+<label><input type="checkbox" id="grid"> Compass grid</label></div>
+<canvas id="c" role="img" aria-label="Magnetic field lines of a solenoid and a bar magnet"></canvas>
+<div class="cards">
+<div class="card"><div class="k">Solenoid field at center</div><div class="n" id="bc">0 µT</div><div class="s">ideal: <span id="bi">0 µT</span></div></div>
+<div class="card"><div class="k">Force on magnet</div><div class="n" id="fr">0</div><div class="s" id="frd">no force</div></div>
+<div class="card"><div class="k">Torque on magnet</div><div class="n" id="tq">0</div><div class="s" id="tqd">no torque</div></div>
+<div class="card"><div class="k">Magnet pole nearest coil</div><div class="n" id="mg">N</div><div class="s" id="mgd">pole nearest the coil</div></div>
+</div>
+<p class="note">Drag either object. Dots are current toward you, crosses are current away. Pole strength grows with the bar’s thickness. Orange arrows show the force on the magnet and the equal and opposite force on the coil, with length compressed so weak and strong forces both stay visible. Force and torque are in arbitrary units. Scale: 10 px = 1 cm.</p>
+</main>
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const dpr=window.devicePixelRatio||1,GS=6,H=380;let ML=84,TH=24;
+let W=680,cx=230,cy=H/2,T=8,LEN=240,R=40,I=2,sgn=1,showGrid=false,showF=true,drag=null;
+let mx=540,my=H/2,mrot=0,mflip=1,S=1,IP=[{x:0,y:0,q:0},{x:0,y:0,q:0}],MAG=0;
+let gw=0,gh=0,GX=null,GY=null;
+const $=id=>document.getElementById(id);
+function size(){const r=cv.getBoundingClientRect();W=r.width||680;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);}
+function rawB(px,py){const M=40,dphi=2*Math.PI/M;let sx=0,sy=0;const y=cy-py;for(let i=0;i<T;i++){const xi=cx-LEN/2+(i+0.5)*LEN/T,dx=px-xi;for(let k=0;k<M;k++){const phi=(k+0.5)*dphi,c=Math.cos(phi);const r2=dx*dx+y*y-2*y*R*c+R*R+16;const inv=1/(r2*Math.sqrt(r2));sx+=(R*R-R*y*c)*inv;sy+=R*c*dx*inv;}}return [sgn*sx*dphi,-sgn*sy*dphi];}
+function buildGrid(){gw=Math.ceil(W/GS)+2;gh=Math.ceil(H/GS)+2;GX=new Float32Array(gw*gh);GY=new Float32Array(gw*gh);for(let j=0;j<gh;j++)for(let i=0;i<gw;i++){const b=rawB(i*GS,j*GS);GX[j*gw+i]=b[0];GY[j*gw+i]=b[1];}}
+function solB(x,y){const fx=x/GS,fy=y/GS;let i=Math.floor(fx),j=Math.floor(fy);i=Math.max(0,Math.min(gw-2,i));j=Math.max(0,Math.min(gh-2,j));const tx=fx-i,ty=fy-j,a=j*gw+i,b=a+1,c=a+gw,d=c+1;return [I*(GX[a]*(1-tx)*(1-ty)+GX[b]*tx*(1-ty)+GX[c]*(1-tx)*ty+GX[d]*tx*ty),I*(GY[a]*(1-tx)*(1-ty)+GY[b]*tx*(1-ty)+GY[c]*(1-tx)*ty+GY[d]*tx*ty)];}
+function updateIron(){const a=mrot*Math.PI/180+(mflip<0?Math.PI:0),ux=Math.cos(a),uy=Math.sin(a),Q=S>0?1000*S*(TH/24):0;MAG=S>0?1:0;IP=[{x:mx+ux*ML/2,y:my+uy*ML/2,q:Q},{x:mx-ux*ML/2,y:my-uy*ML/2,q:-Q}];}
+function magPoles(){return IP;}
+function field(x,y){const s=solB(x,y);let bx=s[0],by=s[1];if(S>0){for(const p of magPoles()){const dx=x-p.x,dy=y-p.y,d2=dx*dx+dy*dy+9,inv=p.q/(d2*Math.sqrt(d2));bx+=dx*inv;by+=dy*inv;}}const m=Math.hypot(bx,by)||1e-12;return [bx/m,by/m,m];}
+function forceOnMagnet(){if(S===0)return {fx:0,fy:0,tau:0};let fx=0,fy=0,tau=0;for(const p of magPoles()){const b=solB(p.x,p.y),f0=p.q*b[0],f1=p.q*b[1];fx+=f0;fy+=f1;tau+=(p.x-mx)*f1-(p.y-my)*f0;}return {fx,fy,tau};}
+function trace(x,y,sg){const pts=[[x,y]],x0=x,y0=y,h=3*sg,P=S>0?magPoles():[];let closed=false;for(let n=0;n<3500;n++){const k1=field(x,y),k2=field(x+k1[0]*h/2,y+k1[1]*h/2),k3=field(x+k2[0]*h/2,y+k2[1]*h/2),k4=field(x+k3[0]*h,y+k3[1]*h);x+=h*(k1[0]+2*k2[0]+2*k3[0]+k4[0])/6;y+=h*(k1[1]+2*k2[1]+2*k3[1]+k4[1])/6;pts.push([x,y]);if(x<0||x>W||y<0||y>H)break;let hit=false;for(const p of P){if(Math.hypot(x-p.x,y-p.y)<6){hit=true;break;}}if(hit)break;if(sg===1&&n>80&&Math.hypot(x-x0,y-y0)<4){closed=true;break;}}return {pts,closed};}
+function arrow(p){const f=field(p[0],p[1]),t=Math.atan2(f[1],f[0]);ctx.save();ctx.translate(p[0],p[1]);ctx.rotate(t);ctx.beginPath();ctx.moveTo(6,0);ctx.lineTo(-4,-4);ctx.lineTo(-4,4);ctx.closePath();ctx.fill();ctx.restore();}
+function strokePts(pts){ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i][0],pts[i][1]);ctx.stroke();}
+function wire(x,y,out){ctx.fillStyle='#D85A30';ctx.beginPath();ctx.arc(x,y,6,0,6.2832);ctx.fill();ctx.fillStyle='#fff';ctx.strokeStyle='#fff';ctx.lineWidth=1.5;if(out){ctx.beginPath();ctx.arc(x,y,2,0,6.2832);ctx.fill();}else{ctx.beginPath();ctx.moveTo(x-2.5,y-2.5);ctx.lineTo(x+2.5,y+2.5);ctx.moveTo(x+2.5,y-2.5);ctx.lineTo(x-2.5,y+2.5);ctx.stroke();}}
+function drawMagnet(){const a=mrot*Math.PI/180+(mflip<0?Math.PI:0);ctx.save();ctx.translate(mx,my);ctx.rotate(a);const ap=1;ctx.fillStyle='#378ADD';ctx.fillRect(-ML/2,-TH/2,ML/2,TH);ctx.fillStyle='#E24B4A';ctx.fillRect(0,-TH/2,ML/2,TH);ctx.strokeStyle='rgba(0,0,0,0.25)';ctx.lineWidth=0.5;ctx.strokeRect(-ML/2,-TH/2,ML,TH);ctx.fillStyle='#fff';ctx.font='500 13px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.save();ctx.translate(-ML/4,0);ctx.rotate(-a);if(ap>0.08&&TH>=16)ctx.fillText(MAG>=0?'S':'N',0,0);ctx.restore();ctx.save();ctx.translate(ML/4,0);ctx.rotate(-a);if(ap>0.08&&TH>=16)ctx.fillText(MAG>=0?'N':'S',0,0);ctx.restore();ctx.restore();}
+function bigArrow(x0,y0,dx,dy,label,alpha){const len=Math.hypot(dx,dy);if(len<2)return;const ux=dx/len,uy=dy/len,x1=x0+dx,y1=y0+dy;ctx.save();ctx.globalAlpha=alpha;ctx.strokeStyle='#BA7517';ctx.fillStyle='#BA7517';ctx.lineWidth=4;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1-ux*8,y1-uy*8);ctx.stroke();ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x1-ux*13-uy*7,y1-uy*13+ux*7);ctx.lineTo(x1-ux*13+uy*7,y1-uy*13-ux*7);ctx.closePath();ctx.fill();ctx.font='500 13px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(label,x1+ux*16,y1+uy*16);ctx.restore();}
+function drawTorque(tau){const d=Math.abs(tau);if(d<20)return;const sg=tau>0?1:-1,a0=-Math.PI/2-sg*0.7,a1=-Math.PI/2+sg*0.7,r=54;ctx.save();ctx.globalAlpha=0.35+0.65*Math.tanh(d/4000);ctx.strokeStyle='#BA7517';ctx.fillStyle='#BA7517';ctx.lineWidth=3.5;ctx.lineCap='round';ctx.beginPath();ctx.arc(mx,my,r,a0,a1,sg<0);ctx.stroke();const ex=mx+r*Math.cos(a1),ey=my+r*Math.sin(a1),tx=-Math.sin(a1)*sg,ty=Math.cos(a1)*sg;ctx.beginPath();ctx.moveTo(ex+tx*9,ey+ty*9);ctx.lineTo(ex-tx*3-ty*7,ey-ty*3+tx*7);ctx.lineTo(ex-tx*3+ty*7,ey-ty*3-tx*7);ctx.closePath();ctx.fill();ctx.restore();}
+function readout(F){const q0=IP[0],q1=IP[1],near=Math.hypot(q0.x-cx,q0.y-cy)<Math.hypot(q1.x-cx,q1.y-cy)?q0:q1;$('mg').textContent=near.q>0?'N':'S';const b=rawB(cx,cy);const BT=1e-7*I*Math.abs(b[0])*1000;const ideal=4*Math.PI*1e-7*T*I/(LEN*1e-3);$('bc').textContent=Math.round(BT*1e6)+' µT';$('bi').textContent=Math.round(ideal*1e6)+' µT';const fm=Math.hypot(F.fx,F.fy);$('fr').textContent=(fm/10).toFixed(1);let fd='no force';if(fm>1){const dot=F.fx*(cx-mx)+F.fy*(cy-my);fd=dot>0?'pulls toward coil':'pushes away from coil';}$('frd').textContent=fd;$('tq').textContent=(Math.abs(F.tau)/100).toFixed(1);$('tqd').textContent=Math.abs(F.tau)<20?'no torque':(F.tau>0?'clockwise':'counterclockwise');}
+function draw(){
+updateIron();ctx.clearRect(0,0,W,H);
+const cs=getComputedStyle(document.documentElement);
+const muted=cs.getPropertyValue('--text-3').trim()||'#888';
+const sec=cs.getPropertyValue('--text-2').trim()||'#666';
+const ref=I*Math.hypot(...rawB(cx,cy))||1;
+if(showGrid){for(let gx=20;gx<W;gx+=34)for(let gy=20;gy<H;gy+=34){if(Math.abs(Math.abs(gy-cy)-R)<10&&Math.abs(gx-cx)<LEN/2+12)continue;const dxm=gx-mx,dym=gy-my,a=mrot*Math.PI/180+(mflip<0?Math.PI:0),u=dxm*Math.cos(a)+dym*Math.sin(a),v=-dxm*Math.sin(a)+dym*Math.cos(a);if(Math.abs(u)<ML/2+10&&Math.abs(v)<TH/2+10)continue;const f=field(gx,gy);ctx.globalAlpha=Math.min(1,0.2+0.8*Math.pow(f[2]/ref,0.5));ctx.lineCap='round';ctx.lineWidth=2.5;ctx.strokeStyle=muted;ctx.beginPath();ctx.moveTo(gx-f[0]*8,gy-f[1]*8);ctx.lineTo(gx,gy);ctx.stroke();ctx.strokeStyle='#E24B4A';ctx.beginPath();ctx.moveTo(gx,gy);ctx.lineTo(gx+f[0]*8,gy+f[1]*8);ctx.stroke();}ctx.globalAlpha=1;}
+ctx.strokeStyle='#1D9E75';ctx.fillStyle='#1D9E75';ctx.lineWidth=1.5;ctx.lineCap='round';ctx.lineJoin='round';
+let n=Math.floor(1.76*R/6)+1;if(n%2===0)n++;
+for(let k=0;k<n;k++){const u=n===1?0:(k-(n-1)/2)/((n-1)/2)*0.88;const sy=cy+u*R;const fw=trace(cx,sy,1);strokePts(fw.pts);if(fw.closed){arrow(fw.pts[Math.floor(fw.pts.length*0.25)]);arrow(fw.pts[Math.floor(fw.pts.length*0.75)]);}else{const bw=trace(cx,sy,-1);strokePts(bw.pts);if(fw.pts.length>40)arrow(fw.pts[Math.floor(fw.pts.length*0.5)]);if(bw.pts.length>40)arrow(bw.pts[Math.floor(bw.pts.length*0.5)]);}}
+if(S>0&&Math.abs(MAG)>0.03){ctx.strokeStyle='#7F77DD';ctx.fillStyle='#7F77DD';const np=Math.max(4,Math.round(8*S));const pN=magPoles()[0];const a0=Math.atan2(pN.y-my,pN.x-mx);for(let k=0;k<np;k++){const ang=a0+k*2*Math.PI/np;const t=trace(pN.x+Math.cos(ang)*7,pN.y+Math.sin(ang)*7,1);strokePts(t.pts);if(t.pts.length>40)arrow(t.pts[Math.floor(t.pts.length*0.4)]);}}
+ctx.strokeStyle=sec;ctx.lineWidth=0.5;ctx.setLineDash([3,3]);ctx.strokeRect(cx-LEN/2,cy-R,LEN,2*R);ctx.setLineDash([]);
+for(let i=0;i<T;i++){const xi=cx-LEN/2+(i+0.5)*LEN/T;wire(xi,cy-R,sgn>0);wire(xi,cy+R,sgn<0);}
+const nx=sgn>0?cx+LEN/2:cx-LEN/2,sx=sgn>0?cx-LEN/2:cx+LEN/2;
+ctx.font='500 13px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+[[nx,'N','#E24B4A'],[sx,'S','#378ADD']].forEach(p=>{ctx.fillStyle=p[2];ctx.beginPath();ctx.arc(p[0],cy-R-20,10,0,6.2832);ctx.fill();ctx.fillStyle='#fff';ctx.fillText(p[1],p[0],cy-R-19.5);});
+drawMagnet();
+const F=forceOnMagnet();
+if(showF&&S>0){const fm=Math.hypot(F.fx,F.fy);if(fm>1){const L=Math.max(14,110*Math.tanh(fm/80)),ux=F.fx/fm,uy=F.fy/fm;bigArrow(mx,my,ux*L,uy*L,'F',1);bigArrow(cx,cy,-ux*L,-uy*L,'−F',0.6);}drawTorque(F.tau);}
+readout(F);
+}
+function rebuild(){buildGrid();draw();}
+function pos(e){const r=cv.getBoundingClientRect();return [e.clientX-r.left,e.clientY-r.top];}
+function hitMagnet(x,y){const a=mrot*Math.PI/180+(mflip<0?Math.PI:0),dx=x-mx,dy=y-my,u=dx*Math.cos(a)+dy*Math.sin(a),v=-dx*Math.sin(a)+dy*Math.cos(a);return Math.abs(u)<ML/2+4&&Math.abs(v)<TH/2+8;}
+cv.addEventListener('pointerdown',e=>{const [x,y]=pos(e);if(hitMagnet(x,y)){drag={t:'m',ox:x-mx,oy:y-my};}else if(Math.abs(x-cx)<LEN/2+20&&Math.abs(y-cy)<R+24){drag={t:'s',ox:x-cx,oy:y-cy};}else return;cv.setPointerCapture(e.pointerId);cv.style.cursor='grabbing';});
+cv.addEventListener('pointermove',e=>{if(!drag)return;const [x,y]=pos(e);if(drag.t==='m'){mx=Math.max(20,Math.min(W-20,x-drag.ox));my=Math.max(20,Math.min(H-20,y-drag.oy));draw();}else{cx=Math.max(LEN/2+10,Math.min(W-LEN/2-10,x-drag.ox));cy=Math.max(R+30,Math.min(H-R-10,y-drag.oy));rebuild();}});
+function end(){drag=null;cv.style.cursor='grab';}
+cv.addEventListener('pointerup',end);cv.addEventListener('pointercancel',end);
+function clampPos(){cx=Math.max(LEN/2+10,Math.min(W-LEN/2-10,cx));cy=Math.max(R+30,Math.min(H-R-10,cy));}
+$('turns').addEventListener('input',e=>{T=+e.target.value;$('turnsOut').textContent=T;rebuild();});
+$('len').addEventListener('input',e=>{LEN=+e.target.value;$('lenOut').textContent=Math.round(LEN/10)+' cm';clampPos();rebuild();});
+$('rad').addEventListener('input',e=>{R=+e.target.value;$('radOut').textContent=(R/10).toFixed(1).replace('.0','')+' cm';clampPos();rebuild();});
+$('cur').addEventListener('input',e=>{I=+e.target.value;$('curOut').textContent=I+' A';draw();});
+$('rev').addEventListener('click',()=>{sgn=-sgn;rebuild();});
+$('str').addEventListener('input',e=>{S=+e.target.value;$('strOut').textContent=S;draw();});
+$('rot').addEventListener('input',e=>{mrot=+e.target.value;$('rotOut').textContent=mrot+'°';draw();});
+$('flip').addEventListener('click',()=>{mflip=-mflip;draw();});
+$('blen').addEventListener('input',e=>{ML=+e.target.value;$('blenOut').textContent=(ML/10).toFixed(1)+' cm';draw();});
+$('bth').addEventListener('input',e=>{TH=+e.target.value;$('bthOut').textContent=(TH/10).toFixed(1)+' cm';draw();});
+
+$('frc').addEventListener('change',e=>{showF=e.target.checked;draw();});
+$('grid').addEventListener('change',e=>{showGrid=e.target.checked;draw();});
+window.addEventListener('resize',()=>{size();clampPos();mx=Math.min(mx,W-20);rebuild();});
+try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',draw);}catch(e){}
+size();cx=W*0.34;mx=W*0.75;rebuild();
+</script>
+</body>
+</html>
